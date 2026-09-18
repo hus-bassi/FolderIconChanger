@@ -41,6 +41,11 @@ public static class Strings
     public const string NoCustomIconFound = "This folder does not have a custom icon from Folder Icon Changer.";
     public const string RestoredPrevious = "Custom icon removed. The folder's original icon was restored.";
 
+    public const string RestartExplorerButton = "Restart Explorer";
+    public const string RestartExplorerConfirm = "Restart Explorer now?\n\nAny open File Explorer windows will close and reopen automatically. This is the surest way to force Windows to show the new folder icon.";
+    public const string RestartingExplorer = "Restarting Explorer…";
+    public const string ExplorerRestarted = "Explorer restarted. Check the folder icon now.";
+
     public const string ErrorAccessDenied = "Windows denied permission to modify this folder. You may need to move the folder to an accessible location, or run the app as administrator for protected system folders.";
     public const string ErrorFolderInaccessible = "Unable to access this folder.";
     public const string ErrorIconWrite = "Unable to create the icon file.";

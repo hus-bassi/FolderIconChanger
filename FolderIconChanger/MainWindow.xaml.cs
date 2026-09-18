@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -267,6 +268,10 @@ public partial class MainWindow : Window
             if (result.Success)
             {
                 SettingsService.Instance.RememberFolder(folder);
+                if (SettingsService.Instance.Current.OpenFolderAfterApply)
+                {
+                    OpenInExplorer(folder);
+                }
             }
 
             SetStatus(result.Message, result.Success ? StatusKind.Success : StatusKind.Error);
@@ -325,6 +330,65 @@ public partial class MainWindow : Window
     }
 
     // ------------------------------------------------------------ window chrome
+
+    /// <summary>
+    /// Opens the folder in a brand-new Explorer window. A fresh window re-extracts
+    /// the folder icon from the shell, so it instantly shows the applied icon even
+    /// if another Explorer window was showing a stale cached one.
+    /// </summary>
+    private static void OpenInExplorer(string folder)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"")
+            {
+                UseShellExecute = true,
+                CreateNoWindow = true
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error(ex, "Could not open the folder in Explorer.");
+        }
+    }
+
+    private void RestartExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this, Strings.RestartExplorerConfirm, Strings.AppTitle,
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            SetBusy(true, Strings.RestartingExplorer);
+            Process.Start(new ProcessStartInfo("taskkill.exe", "/f /im explorer.exe")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true
+            })?.WaitForExit(5000);
+
+            // Explorer relaunches automatically; make sure.
+            Process.Start(new ProcessStartInfo("explorer.exe")
+            {
+                UseShellExecute = true,
+                CreateNoWindow = true
+            });
+
+            ExplorerRefreshService.RebuildIconCache();
+            SetStatus(Strings.ExplorerRestarted, StatusKind.Success);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error(ex, "Could not restart Explorer.");
+            SetStatus(Strings.ErrorUnexpected, StatusKind.Error);
+        }
+        finally
+        {
+            SetBusy(false, Strings.StatusReady);
+        }
+    }
 
     private void EnableDarkTitleBar()
     {

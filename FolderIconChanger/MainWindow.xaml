@@ -167,6 +167,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <ProgressBar x:Name="Spinner" Grid.Column="0" IsIndeterminate="True"
                              Width="16" Height="16" Margin="0,0,10,0"
@@ -182,6 +183,9 @@
                            Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center"
                            TextWrapping="Wrap" />
+                <Button Grid.Column="2" Content="{x:Static loc:Strings.RestartExplorerButton}"
+                        Style="{StaticResource SmallGhostButtonStyle}"
+                        Click="RestartExplorer_Click" />
             </Grid>
         </Border>
     </Grid>
