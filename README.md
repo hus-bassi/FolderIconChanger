@@ -69,6 +69,19 @@ FolderIconChanger.exe restore "C:\MyFolder"                   # رجّع الا�
 & .\tools\run-tests.ps1        # بيجرب كل الحالات end-to-end على الـ EXE الجاهز
 ```
 
+## 🛠️ لو الأيقونة مش بتتحدث (نادرًا)
+
+التطبيق بيحدّث Explorer أوتوماتيك، لكن ويندوز أحيانًا **بيحتفظ بالصورة القديمة في الكاش**. جرب بالترتيب:
+
+1. قفّل Folder Explorer وافتحه تاني (F5 كمان مفيدة).
+2. لو لسه: اعمل **Restart Explorer** — Task Manager → ابحث `Windows Explorer` → Restart.
+3. آخر حل: افتح PowerShell كـ Admin وشغّل:
+   ```powershell
+   Stop-Process -Name explorer -Force
+   ```
+
+مش هتخسر أي حاجة — الملفات مكتوبة صح، المشكلة مجرد عرض الفرص.
+
 ## 🗂️ بنية المشروع
 
 | Path | يعمل إيه |
