@@ -106,7 +106,7 @@ public static class FolderIconService
             SettingsService.Instance.SaveRecord(record);
 
             AppLog.Info($"Icon applied: folder='{folderPath}' icon='{iconFileName}'");
-            ExplorerRefreshService.RefreshFolder(folderPath);
+            ExplorerRefreshService.RefreshFolder(folderPath, forceIconCacheRebuild: wasCustomized);
             return new FolderIconResult(true, Strings.IconAppliedSuccess);
         }
         catch (UnauthorizedAccessException ex)
@@ -230,6 +230,7 @@ public static class FolderIconService
             SettingsService.Instance.RemoveRecord(folderPath);
             AppLog.Info($"Icon restored: folder='{folderPath}'");
             ExplorerRefreshService.RefreshFolder(folderPath);
+            ExplorerRefreshService.RebuildIconCache();
 
             return new FolderIconResult(true,
                 string.IsNullOrWhiteSpace(record?.PreviousIconResource)

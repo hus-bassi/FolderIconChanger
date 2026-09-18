@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using FolderIconChanger.Helpers;
@@ -13,6 +14,7 @@ public static class ExplorerRefreshService
     // SHCNE events
     private const int SHCNE_UPDATEDIR = 0x00001000;
     private const int SHCNE_UPDATEITEM = 0x00002000;
+    private const int SHCNE_ICONASSOCIATIONCHANGED = 0x0800;
     private const int SHCNE_ASSOCCHANGED = 0x08000000;
 
     // SHCNF flags
@@ -23,7 +25,7 @@ public static class ExplorerRefreshService
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern void SHChangeNotify(int wEventId, uint uFlags, string? dwItem1, string? dwItem2);
 
-    public static void RefreshFolder(string folderPath)
+    public static void RefreshFolder(string folderPath, bool forceIconCacheRebuild = false)
     {
         try
         {
@@ -42,6 +44,11 @@ public static class ExplorerRefreshService
             Notify(SHCNE_UPDATEITEM, parent, null);
             Notify(SHCNE_ASSOCCHANGED, null, null);      // rebuild the icon cache
 
+            if (forceIconCacheRebuild)
+            {
+                RebuildIconCache();
+            }
+
             // Explorer can be slow to pick up a re-applied icon; re-announce shortly
             // afterwards so the new icon reliably replaces the cached one.
             _ = Task.Run(async () =>
@@ -56,6 +63,50 @@ public static class ExplorerRefreshService
         catch (Exception ex)
         {
             AppLog.Error(ex, "Explorer refresh failed.");
+        }
+    }
+
+    /// <summary>
+    /// Forces Explorer to drop its cached icons and re-extract them. Needed when
+    /// re-applying to an already-customized folder: a huge/stale iconcache_*.db may
+    /// keep showing the old icon no matter how correct desktop.ini is.
+    /// </summary>
+    public static void RebuildIconCache()
+    {
+        try
+        {
+            SHChangeNotify(SHCNE_ICONASSOCIATIONCHANGED, SHCNF_IDLIST | SHCNF_FLUSH, null, null);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error(ex, "Icon association refresh failed.");
+        }
+
+        RunTool("ie4uinit.exe", "-ClearIconCache"); // Windows 11 (22H2+)
+        RunTool("ie4uinit.exe", "-show");           // Windows 10 / 11 pre-22H2
+    }
+
+    /// <summary>Runs a small shell utility and waits briefly so it finishes before the UI reports success.</summary>
+    private static void RunTool(string file, string arguments)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, file), arguments)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true
+            };
+            using var process = Process.Start(psi);
+            if (process is not null)
+            {
+                process.WaitForExit(3000);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error(ex, $"Could not run {file} {arguments}.");
         }
     }
 
