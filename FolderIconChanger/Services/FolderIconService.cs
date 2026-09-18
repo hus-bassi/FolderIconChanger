@@ -72,6 +72,8 @@ public static class FolderIconService
 
             // 3. Folder attributes so Explorer reads desktop.ini.
             FileAttributes folderAttrs = File.GetAttributes(folderPath);
+            FileAttributes targetAttrs =
+                folderAttrs | FileAttributes.ReadOnly | FileAttributes.System;
             var record = new AppliedFolderRecord
             {
                 FolderPath = folderPath,
@@ -82,8 +84,23 @@ public static class FolderIconService
                 PreviousIconResource = previousResource,
                 AppliedUtc = DateTime.UtcNow
             };
-            File.SetAttributes(folderPath,
-                folderAttrs | FileAttributes.ReadOnly | FileAttributes.System);
+
+            // Re-applying over an already-customized folder: Explorer caches the icon
+            // and won't re-read desktop.ini if nothing about the folder changes.
+            // Toggle the attrs (remove then re-add) so Explorer sees the change.
+            bool wasCustomized =
+                (folderAttrs & FileAttributes.ReadOnly) != 0 &&
+                (folderAttrs & FileAttributes.System) != 0;
+            if (wasCustomized)
+            {
+                File.SetAttributes(folderPath,
+                    folderAttrs & ~(FileAttributes.ReadOnly | FileAttributes.System));
+                File.SetAttributes(folderPath, targetAttrs);
+            }
+            else
+            {
+                File.SetAttributes(folderPath, targetAttrs);
+            }
 
             // 4. Remember for safe restore.
             SettingsService.Instance.SaveRecord(record);

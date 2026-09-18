@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using FolderIconChanger.Helpers;
 
@@ -26,22 +27,47 @@ public static class ExplorerRefreshService
     {
         try
         {
-            SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_PATHW | SHCNF_FLUSH, folderPath, null);
-            SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW | SHCNF_FLUSH, folderPath, null);
+            // The folder's icon is displayed inside its PARENT view, so the parent
+            // directory must be notified too (this is what usually updates it).
+            string root = Path.GetPathRoot(folderPath) ?? folderPath;
+            string parent = Path.GetDirectoryName(folderPath.TrimEnd('\\', '/'));
+            if (string.IsNullOrEmpty(parent) || string.Equals(parent, folderPath, StringComparison.OrdinalIgnoreCase))
+            {
+                parent = root;
+            }
+
+            Notify(SHCNE_UPDATEDIR, folderPath, null);   // re-scan the folder's own contents
+            Notify(SHCNE_UPDATEDIR, parent, null);       // re-scan the parent (shows this folder's icon)
+            Notify(SHCNE_UPDATEITEM, folderPath, null);  // refresh this item itself
+            Notify(SHCNE_UPDATEITEM, parent, null);
+            Notify(SHCNE_ASSOCCHANGED, null, null);      // rebuild the icon cache
+
+            // Explorer can be slow to pick up a re-applied icon; re-announce shortly
+            // afterwards so the new icon reliably replaces the cached one.
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(650);
+                Notify(SHCNE_UPDATEDIR, folderPath, null);
+                Notify(SHCNE_UPDATEDIR, parent, null);
+                Notify(SHCNE_UPDATEITEM, folderPath, null);
+                Notify(SHCNE_ASSOCCHANGED, null, null);
+            });
         }
         catch (Exception ex)
         {
-            AppLog.Error(ex, "Explorer folder refresh failed.");
+            AppLog.Error(ex, "Explorer refresh failed.");
         }
+    }
 
+    private static void Notify(int eventId, string? item1, string? item2)
+    {
         try
         {
-            // Rebuild the icon cache so the new folder icon shows up immediately.
-            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST | SHCNF_FLUSH, null, null);
+            SHChangeNotify(eventId, SHCNF_PATHW | SHCNF_FLUSH, item1, item2);
         }
         catch (Exception ex)
         {
-            AppLog.Error(ex, "Explorer icon cache refresh failed.");
+            AppLog.Error(ex, $"SHChangeNotify(0x{eventId:X8}) failed.");
         }
     }
 }
